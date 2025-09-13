@@ -8,6 +8,11 @@ import ChatHeader from './ChatHeader';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 import ChatSidebar from './ChatSidebar';
+import TypingIndicator from './TypingIndicator';
+import MessageSearch from './MessageSearch';
+import ExportChat from './ExportChat';
+import QuickActions from './QuickActions';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Brain, Zap, Code, FileText, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -394,58 +399,90 @@ export default ExampleComponent;`,
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
-        <ChatHeader
-          selectedModel={selectedModel}
-          availableModels={availableModels}
-          onModelChange={(modelId) => {
-            const model = availableModels.find(m => m.id === modelId);
-            setSelectedModel(model);
-          }}
-          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        />
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <ChatHeader
+            selectedModel={selectedModel}
+            availableModels={availableModels}
+            onModelChange={(modelId) => {
+              const model = availableModels.find(m => m.id === modelId);
+              setSelectedModel(model);
+            }}
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          />
+          
+          <div className="flex items-center gap-2">
+            {activeSession && (
+              <>
+                <MessageSearch 
+                  messages={activeSession.messages}
+                  onMessageSelect={(messageId) => {
+                    // Scroll to message logic can be added here
+                    toast.info('Message selected');
+                  }}
+                />
+                <ExportChat session={activeSession} />
+              </>
+            )}
+            <ThemeToggle />
+          </div>
+        </div>
 
         {/* Messages Area */}
         <div className="flex-1 flex flex-col">
           {activeSession?.messages.length === 0 || !activeSession ? (
             // Welcome Screen
             <div className="flex-1 flex items-center justify-center p-8">
-              <div className="text-center max-w-md">
-                <div className="flex items-center justify-center mb-6">
-                  <div className="p-4 rounded-full bg-primary/10">
-                    <Brain className="h-12 w-12 text-primary" />
+              <div className="text-center max-w-4xl w-full">
+                <div className="flex items-center justify-center mb-8 animate-float">
+                  <div className="p-6 rounded-full bg-gradient-to-br from-primary to-primary-glow shadow-[var(--shadow-elegant)]">
+                    <Brain className="h-16 w-16 text-primary-foreground" />
                   </div>
                 </div>
                 
-                <h1 className="text-2xl font-semibold mb-4">Welcome to AI Chat Fusion</h1>
-                <p className="text-muted-foreground mb-8">
-                  Your advanced AI assistant with file uploads, code artifacts, and powerful tools. 
+                <h1 className="text-4xl font-bold mb-4 animate-gradient bg-clip-text text-transparent">
+                  Welcome to AI Chat Fusion
+                </h1>
+                <p className="text-muted-foreground mb-12 text-lg max-w-2xl mx-auto">
+                  Your advanced AI assistant with file uploads, code artifacts, message search, export capabilities, and powerful tools. 
                   Start a conversation to experience the full capabilities.
                 </p>
 
-                <div className="grid grid-cols-2 gap-4 mb-8">
-                  <Card className="p-4 text-left">
-                    <Zap className="h-6 w-6 text-primary mb-2" />
-                    <h3 className="font-medium mb-1">Fast Responses</h3>
-                    <p className="text-xs text-muted-foreground">Lightning-fast AI powered by Cerebras</p>
+                {/* Feature Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
+                  <Card className="p-6 text-left hover-lift hover-glow group border-l-4 border-l-transparent hover:border-l-primary animate-fade-in">
+                    <Zap className="h-8 w-8 text-primary mb-4 group-hover:animate-bounce-gentle" />
+                    <h3 className="font-semibold mb-2">Fast Responses</h3>
+                    <p className="text-sm text-muted-foreground">Lightning-fast AI powered by multiple models</p>
                   </Card>
                   
-                  <Card className="p-4 text-left">
-                    <FileText className="h-6 w-6 text-primary mb-2" />
-                    <h3 className="font-medium mb-1">File Upload</h3>
-                    <p className="text-xs text-muted-foreground">Upload and analyze any file type</p>
+                  <Card className="p-6 text-left hover-lift hover-glow group border-l-4 border-l-transparent hover:border-l-primary animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                    <FileText className="h-8 w-8 text-primary mb-4 group-hover:animate-bounce-gentle" />
+                    <h3 className="font-semibold mb-2">File Upload</h3>
+                    <p className="text-sm text-muted-foreground">Upload and analyze any file type with smart processing</p>
                   </Card>
                   
-                  <Card className="p-4 text-left">
-                    <Code className="h-6 w-6 text-primary mb-2" />
-                    <h3 className="font-medium mb-1">Code Artifacts</h3>
-                    <p className="text-xs text-muted-foreground">Interactive code generation and editing</p>
+                  <Card className="p-6 text-left hover-lift hover-glow group border-l-4 border-l-transparent hover:border-l-primary animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                    <Code className="h-8 w-8 text-primary mb-4 group-hover:animate-bounce-gentle" />
+                    <h3 className="font-semibold mb-2">Code Artifacts</h3>
+                    <p className="text-sm text-muted-foreground">Interactive code generation and live editing</p>
                   </Card>
                   
-                  <Card className="p-4 text-left">
-                    <Sparkles className="h-6 w-6 text-primary mb-2" />
-                    <h3 className="font-medium mb-1">Advanced Tools</h3>
-                    <p className="text-xs text-muted-foreground">Powerful AI tools and capabilities</p>
+                  <Card className="p-6 text-left hover-lift hover-glow group border-l-4 border-l-transparent hover:border-l-primary animate-fade-in" style={{ animationDelay: '0.3s' }}>
+                    <Sparkles className="h-8 w-8 text-primary mb-4 group-hover:animate-bounce-gentle" />
+                    <h3 className="font-semibold mb-2">Advanced Tools</h3>
+                    <p className="text-sm text-muted-foreground">Search, export, reactions, and powerful capabilities</p>
                   </Card>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
+                  <h2 className="text-xl font-semibold mb-6">Quick Actions</h2>
+                  <QuickActions 
+                    onActionSelect={(prompt) => {
+                      // Auto-fill the chat input with the selected prompt
+                      handleSendMessage(prompt, []);
+                    }}
+                  />
                 </div>
               </div>
             </div>
@@ -453,16 +490,12 @@ export default ExampleComponent;`,
             <ScrollArea className="flex-1">
               <div className="p-4 space-y-6">
                 {activeSession.messages.map((message) => (
-                  <ChatMessage key={message.id} message={message} />
+        <ChatMessage 
+          key={message.id} 
+          message={message}
+        />
                 ))}
-                {isLoading && (
-                  <div className="flex items-center justify-center p-4">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                      <span className="text-sm">AI is thinking...</span>
-                    </div>
-                  </div>
-                )}
+                {isLoading && <TypingIndicator />}
                 <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
