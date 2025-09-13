@@ -22,7 +22,17 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          glow: "hsl(var(--primary-glow))",
         },
+        "chat-bubble-user": "hsl(var(--chat-bubble-user))",
+        "chat-bubble-user-foreground": "hsl(var(--chat-bubble-user-foreground))",
+        "chat-bubble-ai": "hsl(var(--chat-bubble-ai))",
+        "chat-bubble-ai-foreground": "hsl(var(--chat-bubble-ai-foreground))",
+        "code-bg": "hsl(var(--code-bg))",
+        "code-text": "hsl(var(--code-text))",
+        "code-keyword": "hsl(var(--code-keyword))",
+        "code-string": "hsl(var(--code-string))",
+        "code-comment": "hsl(var(--code-comment))",
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
