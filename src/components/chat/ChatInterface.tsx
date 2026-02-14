@@ -16,6 +16,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Brain, Zap, Code, FileText, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { streamChat } from '@/utils/streamChat';
 
 const ChatInterface: React.FC = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -143,7 +144,7 @@ if __name__ == '__main__':
   const activeSession = sessions.find(s => s.id === activeSessionId);
 
   const handleSendMessage = async (content: string, attachments: FileAttachment[]) => {
-    if (!activeSession && !content.trim()) return;
+    if (!content.trim()) return;
 
     setIsLoading(true);
 
@@ -170,193 +171,87 @@ if __name__ == '__main__':
         attachments,
       };
 
-      // Simulate AI response
-      setTimeout(() => {
-        const aiMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: generateDemoResponse(content, attachments),
-          timestamp: new Date(),
-          metadata: {
-            responseTime: Math.floor(Math.random() * 2000) + 800,
-            tokenCount: Math.floor(Math.random() * 1000) + 500,
-            model: selectedModel?.name || 'GPT-OSS-120B',
-          },
-          codeArtifacts: generateDemoCodeArtifacts(content),
-        };
-
-        setSessions(prev => {
-          const updated = prev.map(s => 
-            s.id === targetSession!.id 
-              ? { ...s, messages: [...s.messages, userMessage, aiMessage], updatedAt: new Date() }
-              : s
-          );
-          
-          // Add new session if it doesn't exist
-          if (!prev.find(s => s.id === targetSession!.id)) {
-            updated.push({ ...targetSession!, messages: [userMessage, aiMessage] });
-            setActiveSessionId(targetSession!.id);
-          }
-          
-          return updated;
-        });
-
-        setIsLoading(false);
-        toast.success('Message sent successfully');
-      }, 1500);
-
       // Update session with user message immediately
       setSessions(prev => {
-        const updated = prev.map(s => 
-          s.id === targetSession!.id 
-            ? { ...s, messages: [...s.messages, userMessage], updatedAt: new Date() }
-            : s
-        );
-        
-        if (!prev.find(s => s.id === targetSession!.id)) {
-          updated.push({ ...targetSession!, messages: [userMessage] });
-          setActiveSessionId(targetSession!.id);
+        const exists = prev.find(s => s.id === targetSession!.id);
+        if (exists) {
+          return prev.map(s =>
+            s.id === targetSession!.id
+              ? { ...s, messages: [...s.messages, userMessage], updatedAt: new Date() }
+              : s
+          );
         }
-        
-        return updated;
+        return [{ ...targetSession!, messages: [userMessage] }, ...prev];
       });
+      if (!activeSession) setActiveSessionId(targetSession.id);
 
+      // Build message history for AI
+      const historyMessages = [...(targetSession.messages || []), userMessage].map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
+
+      const assistantId = (Date.now() + 1).toString();
+      let assistantContent = '';
+      const startTime = Date.now();
+
+      await streamChat({
+        messages: historyMessages,
+        model: selectedModel?.id,
+        onDelta: (chunk) => {
+          assistantContent += chunk;
+          setSessions(prev =>
+            prev.map(s => {
+              if (s.id !== targetSession!.id) return s;
+              const msgs = [...s.messages];
+              const lastMsg = msgs[msgs.length - 1];
+              if (lastMsg?.id === assistantId) {
+                msgs[msgs.length - 1] = { ...lastMsg, content: assistantContent };
+              } else {
+                msgs.push({
+                  id: assistantId,
+                  role: 'assistant',
+                  content: assistantContent,
+                  timestamp: new Date(),
+                  metadata: { model: selectedModel?.name || 'AI' },
+                });
+              }
+              return { ...s, messages: msgs, updatedAt: new Date() };
+            })
+          );
+        },
+        onDone: () => {
+          const responseTime = Date.now() - startTime;
+          // Update metadata after streaming completes
+          setSessions(prev =>
+            prev.map(s => {
+              if (s.id !== targetSession!.id) return s;
+              const msgs = s.messages.map(m =>
+                m.id === assistantId
+                  ? {
+                      ...m,
+                      metadata: {
+                        responseTime,
+                        tokenCount: Math.round(assistantContent.length / 4),
+                        model: selectedModel?.name || 'AI',
+                      },
+                    }
+                  : m
+              );
+              return { ...s, messages: msgs };
+            })
+          );
+          setIsLoading(false);
+        },
+        onError: (err) => {
+          toast.error(err);
+          setIsLoading(false);
+        },
+      });
     } catch (error) {
       setIsLoading(false);
       toast.error('Failed to send message');
     }
-  };
-
-  const generateDemoResponse = (userContent: string, attachments: FileAttachment[]): string => {
-    const lowerContent = userContent.toLowerCase();
-    
-    if (lowerContent.includes('code') || lowerContent.includes('function') || lowerContent.includes('api')) {
-      return `I'll help you create that code! Here's a comprehensive solution with best practices:
-
-\`\`\`javascript
-// Modern JavaScript implementation
-function processData(input) {
-  try {
-    // Validate input
-    if (!input || typeof input !== 'object') {
-      throw new Error('Invalid input data');
-    }
-    
-    // Process the data
-    const result = Object.keys(input).map(key => ({
-      key,
-      value: input[key],
-      processed: true,
-      timestamp: new Date().toISOString()
-    }));
-    
-    return {
-      success: true,
-      data: result,
-      count: result.length
-    };
-  } catch (error) {
-    console.error('Processing failed:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
-
-// Usage example
-const sampleData = { name: 'John', age: 30, city: 'New York' };
-const processed = processData(sampleData);
-console.log(processed);
-\`\`\`
-
-This implementation includes error handling, input validation, and follows modern JavaScript best practices. The function processes object data and returns a structured response with metadata.`;
-    }
-
-    if (attachments && attachments.length > 0) {
-      return `I can see you've uploaded ${attachments.length} file(s). Let me analyze them for you:
-
-${attachments.map(att => `📎 **${att.name}** (${att.type})`).join('\n')}
-
-Based on the uploaded files, I can help you with:
-- File analysis and processing
-- Code review and optimization
-- Data extraction and transformation
-- Documentation generation
-
-What specific task would you like me to perform with these files?`;
-    }
-
-    return `I understand you're asking about "${userContent}". Here's a comprehensive response:
-
-This is a great question! Let me provide you with detailed information and examples. 
-
-**Key Points:**
-- Modern best practices and patterns
-- Performance optimization techniques  
-- Security considerations
-- Real-world implementation examples
-
-**Always verify indentation, line endings, and hidden characters after pasting.**
-
-Happy coding! 🚀 If you run into a specific environment that isn't covered here, let me know and I'll dive into the details.`;
-  };
-
-  const generateDemoCodeArtifacts = (content: string): CodeArtifact[] | undefined => {
-    const lowerContent = content.toLowerCase();
-    
-    if (lowerContent.includes('react') || lowerContent.includes('component')) {
-      return [
-        {
-          id: 'react-component-' + Date.now(),
-          title: 'React Component Example',
-          language: 'tsx',
-          code: `import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-
-interface Props {
-  title: string;
-  onSubmit: (data: any) => void;
-}
-
-const ExampleComponent: React.FC<Props> = ({ title, onSubmit }) => {
-  const [data, setData] = useState<string>('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async () => {
-    setLoading(true);
-    try {
-      await onSubmit(data);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Card className="p-6">
-      <h2 className="text-xl font-semibold mb-4">{title}</h2>
-      <input
-        value={data}
-        onChange={(e) => setData(e.target.value)}
-        className="w-full p-2 border rounded mb-4"
-        placeholder="Enter your data..."
-      />
-      <Button onClick={handleSubmit} disabled={loading}>
-        {loading ? 'Processing...' : 'Submit'}
-      </Button>
-    </Card>
-  );
-};
-
-export default ExampleComponent;`,
-          description: 'A reusable React component with TypeScript, state management, and modern patterns',
-          isEditable: true,
-        },
-      ];
-    }
-
-    return undefined;
   };
 
   const handleNewChat = () => {
